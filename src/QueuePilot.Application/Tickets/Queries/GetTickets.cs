@@ -35,7 +35,7 @@ public class GetTicketsQueryHandler : IRequestHandler<GetTicketsQuery, PagedResu
             request.FromDate,
             request.ToDate);
 
-        var result = await _ticketRepository.GetPagedAsync(parameters, cancellationToken);
+        var result = await _ticketRepository.ListAsync(parameters, cancellationToken);
 
         var tickets = result.Items
             .Select(t => new TicketDto(t.Id, t.Title, t.Status.ToString(), t.CreatedAt, t.Description))
