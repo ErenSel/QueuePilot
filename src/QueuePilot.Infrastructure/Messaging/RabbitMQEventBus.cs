@@ -1,7 +1,10 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using QueuePilot.Application.Common.Interfaces;
+using QueuePilot.Application.Common.Exceptions;
 using QueuePilot.Domain.Common;
 using QueuePilot.Domain.Events;
 using RabbitMQ.Client;
@@ -11,12 +14,14 @@ namespace QueuePilot.Infrastructure.Messaging;
 public class RabbitMQEventBus : IEventBus, IDisposable
 {
     private readonly RabbitMQOptions _options;
+    private readonly ILogger<RabbitMQEventBus> _logger;
     private IConnection? _connection;
     private IModel? _channel;
 
-    public RabbitMQEventBus(IOptions<RabbitMQOptions> options)
+    public RabbitMQEventBus(IOptions<RabbitMQOptions> options, ILogger<RabbitMQEventBus> logger)
     {
         _options = options.Value;
+        _logger = logger;
         InitializeRabbitMQ();
     }
 
@@ -41,7 +46,7 @@ public class RabbitMQEventBus : IEventBus, IDisposable
         catch (Exception ex)
         {
             // Log failure, retry logic or fallback handled by caller/resilience policy
-            Console.WriteLine($"Could not connect to RabbitMQ: {ex.Message}");
+            _logger.LogError(ex, "Could not connect to RabbitMQ");
         }
     }
 
@@ -49,8 +54,18 @@ public class RabbitMQEventBus : IEventBus, IDisposable
     {
         if (_channel == null || _channel.IsClosed)
         {
-            // Re-connect logic or throw
-            return Task.CompletedTask;
+            var eventName = domainEvent.GetType().Name;
+            var messageId = Guid.NewGuid().ToString();
+            var correlationId = Activity.Current?.TraceId.ToString() ?? "none";
+
+            _logger.LogError(
+                "RabbitMQ channel unavailable. Event {EventName} MessageId {MessageId} CorrelationId {CorrelationId}",
+                eventName,
+                messageId,
+                correlationId);
+
+            throw new MessagingUnavailableException(
+                $"RabbitMQ channel unavailable for event {eventName}. MessageId: {messageId}. CorrelationId: {correlationId}.");
         }
 
         var routingKey = GetRoutingKey(domainEvent);

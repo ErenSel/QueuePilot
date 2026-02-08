@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using QueuePilot.Application.Common.Interfaces;
+using QueuePilot.Domain.Common;
 using QueuePilot.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -32,6 +35,9 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsy
             {
                 options.UseNpgsql(_dbContainer.GetConnectionString());
             });
+
+            services.RemoveAll<IEventBus>();
+            services.AddSingleton<IEventBus, NoOpEventBus>();
         });
     }
 
@@ -47,5 +53,13 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsy
     public new async Task DisposeAsync()
     {
         await _dbContainer.StopAsync();
+    }
+
+    private sealed class NoOpEventBus : IEventBus
+    {
+        public Task PublishAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }
