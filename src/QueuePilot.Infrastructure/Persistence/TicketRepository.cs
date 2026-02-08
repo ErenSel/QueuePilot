@@ -24,7 +24,13 @@ public class TicketRepository : ITicketRepository
         await _context.Tickets.AddAsync(ticket, cancellationToken);
     }
 
-    public async Task<PagedResult<Ticket>> GetPagedAsync(TicketQueryParameters parameters, CancellationToken cancellationToken)
+    public Task UpdateAsync(Ticket ticket, CancellationToken cancellationToken)
+    {
+        _context.Tickets.Update(ticket);
+        return Task.CompletedTask;
+    }
+
+    public async Task<PagedResult<Ticket>> ListAsync(TicketQueryParameters parameters, CancellationToken cancellationToken)
     {
         var query = _context.Tickets.AsNoTracking().AsQueryable();
 

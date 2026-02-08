@@ -31,7 +31,8 @@ public class AddTicketCommentCommandHandler : IRequestHandler<AddTicketCommentCo
              throw new NotFoundException($"Ticket {request.TicketId} not found");
 
         ticket.AddComment(request.Text, request.UserId);
-        
+        await _ticketRepository.UpdateAsync(ticket, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach(var domainEvent in ticket.DomainEvents)

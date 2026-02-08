@@ -34,7 +34,8 @@ public class UpdateTicketStatusCommandHandler : IRequestHandler<UpdateTicketStat
         }
 
         ticket.ChangeStatus(request.NewStatus);
-        
+        await _ticketRepository.UpdateAsync(ticket, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach(var domainEvent in ticket.DomainEvents)
