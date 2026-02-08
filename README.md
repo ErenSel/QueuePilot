@@ -1,4 +1,30 @@
-# QueuePilot
+# QueuePilot<
+
+## Project Purpose & Design Goals
+
+QueuePilot was built as a deliberately engineered backend system rather than a feature demo.
+
+The goal of this project is to demonstrate how a real-world backend service should behave under failure, concurrency, and change — not just under happy paths.
+
+Key design goals:
+
+- **Strict Clean Architecture**  
+  The domain and application layers are kept free from infrastructure concerns to enforce long-term maintainability and testability.
+
+- **Explicit failure semantics**  
+  Business and infrastructure failures (authentication errors, messaging failures, validation issues) are surfaced intentionally with correct HTTP semantics rather than generic 500 responses.
+
+- **Event-driven reliability**  
+  Ticket lifecycle events are published via RabbitMQ with idempotent consumers, retry backoff, and effective dead-lettering to prevent message loss or infinite retry loops.
+
+- **Security-first authentication**  
+  JWT access and refresh token flows are implemented with rotation, revocation, and role-based access control, reflecting production-grade auth expectations.
+
+- **Deterministic integration testing**  
+  Integration tests use Testcontainers to spin up isolated PostgreSQL instances, ensuring tests are repeatable and environment-independent.
+
+This project is intentionally scoped as a single service to focus on correctness, architectural discipline, and operational behavior rather than breadth of features.
+
 
 ## Prerequisites
 - .NET SDK 8.0
