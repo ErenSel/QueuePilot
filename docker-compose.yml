@@ -10,6 +10,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=QueuePilotDb;Username=postgres;Password=postgres
+      - Jwt__Secret=${Jwt__Secret}
       - RabbitMq__HostName=rabbitmq
       - RabbitMq__Port=5672
       - RabbitMq__UserName=user
