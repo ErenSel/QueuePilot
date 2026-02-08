@@ -13,6 +13,7 @@ namespace QueuePilot.Infrastructure.Messaging;
 
 public class EventConsumerService : BackgroundService
 {
+    private const int MaxRetryDelaySeconds = 30;
     private readonly RabbitMQOptions _options;
     private readonly ILogger<EventConsumerService> _logger;
     private IConnection? _connection;
@@ -127,11 +128,30 @@ public class EventConsumerService : BackgroundService
                     return;
                 }
 
+                var retryAttempt = retryCount + 1;
+                var delaySeconds = Math.Min(Math.Pow(2, retryCount), MaxRetryDelaySeconds);
+                _logger.LogWarning(
+                    "Retrying message {MessageId}. Attempt {RetryAttempt}/{MaxRetryCount} after {DelaySeconds}s.",
+                    ea.BasicProperties.MessageId,
+                    retryAttempt,
+                    _options.MaxRetryCount,
+                    delaySeconds);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), stoppingToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogWarning("Retry delay cancelled for message {MessageId}. Requeueing.", ea.BasicProperties.MessageId);
+                    _channel.BasicNack(ea.DeliveryTag, false, true);
+                    return;
+                }
+
                 var retryProperties = _channel.CreateBasicProperties();
                 retryProperties.MessageId = ea.BasicProperties.MessageId;
                 retryProperties.Persistent = true;
                 retryProperties.Headers = new Dictionary<string, object>(ea.BasicProperties.Headers ?? new Dictionary<string, object>());
-                retryProperties.Headers["x-retry-count"] = retryCount + 1;
+                retryProperties.Headers["x-retry-count"] = retryAttempt;
 
                 _channel.BasicPublish(_options.ExchangeName, ea.RoutingKey, retryProperties, ea.Body);
                 _channel.BasicAck(ea.DeliveryTag, false);
