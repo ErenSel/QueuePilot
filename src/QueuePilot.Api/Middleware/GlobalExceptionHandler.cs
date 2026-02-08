@@ -43,6 +43,12 @@ public class GlobalExceptionHandler : IExceptionHandler
                 Title = "Not Found",
                 Detail = notFoundException.Message
             },
+            MessagingUnavailableException messagingUnavailableException => new ProblemDetails
+            {
+                Status = (int)HttpStatusCode.ServiceUnavailable,
+                Title = "Service Unavailable",
+                Detail = messagingUnavailableException.Message
+            },
             ValidationException validationException => new ValidationProblemDetails(validationException.Errors
                 .GroupBy(error => error.PropertyName)
                 .ToDictionary(
