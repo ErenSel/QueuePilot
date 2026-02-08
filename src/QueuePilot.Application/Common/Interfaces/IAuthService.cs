@@ -8,4 +8,5 @@ public interface IAuthService
     Task<AuthResult> LoginAsync(LoginCommand command);
     Task<AuthResult> RefreshTokenAsync(RefreshStepCommand command);
     Task RevokeTokenAsync(RevokeCommand command);
+    Task RevokeCurrentUserAsync(string email);
 }

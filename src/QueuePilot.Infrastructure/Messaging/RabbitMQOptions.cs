@@ -7,4 +7,5 @@ public class RabbitMQOptions
     public string UserName { get; set; } = "guest";
     public string Password { get; set; } = "guest";
     public string ExchangeName { get; set; } = "queuepilot.events";
+    public int MaxRetryCount { get; set; } = 5;
 }

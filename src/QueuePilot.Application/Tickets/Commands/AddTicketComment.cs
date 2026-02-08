@@ -1,4 +1,6 @@
 using MediatR;
+using QueuePilot.Application.Common.Events;
+using QueuePilot.Application.Common.Exceptions;
 using QueuePilot.Application.Common.Interfaces;
 
 namespace QueuePilot.Application.Tickets.Commands;
@@ -7,29 +9,34 @@ public record AddTicketCommentCommand(Guid TicketId, Guid UserId, string Text) :
 
 public class AddTicketCommentCommandHandler : IRequestHandler<AddTicketCommentCommand>
 {
-    private readonly IQueuePilotDbContext _context;
-    private readonly IEventBus _eventBus;
+    private readonly ITicketRepository _ticketRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDomainEventPublisher _domainEventPublisher;
 
-    public AddTicketCommentCommandHandler(IQueuePilotDbContext context, IEventBus eventBus)
+    public AddTicketCommentCommandHandler(
+        ITicketRepository ticketRepository,
+        IUnitOfWork unitOfWork,
+        IDomainEventPublisher domainEventPublisher)
     {
-        _context = context;
-        _eventBus = eventBus;
+        _ticketRepository = ticketRepository;
+        _unitOfWork = unitOfWork;
+        _domainEventPublisher = domainEventPublisher;
     }
 
     public async Task Handle(AddTicketCommentCommand request, CancellationToken cancellationToken)
     {
-        var ticket = await _context.Tickets.FindAsync(new object[] { request.TicketId }, cancellationToken);
+        var ticket = await _ticketRepository.GetByIdAsync(request.TicketId, cancellationToken);
 
         if (ticket == null)
-             throw new Exception($"Ticket {request.TicketId} not found");
+             throw new NotFoundException($"Ticket {request.TicketId} not found");
 
         ticket.AddComment(request.Text, request.UserId);
         
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach(var domainEvent in ticket.DomainEvents)
         {
-            await _eventBus.PublishAsync(domainEvent, cancellationToken);
+            await _domainEventPublisher.PublishAsync(domainEvent, cancellationToken);
         }
     }
 }

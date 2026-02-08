@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using QueuePilot.Application.Auth.Commands;
+using QueuePilot.Application.Common.Exceptions;
 using QueuePilot.Application.Common.Interfaces;
 using QueuePilot.Domain.Entities;
 using QueuePilot.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace QueuePilot.Infrastructure.Services;
 
@@ -22,7 +22,7 @@ public class AuthService : IAuthService
     {
         if (await _context.Users.AnyAsync(u => u.Email == command.Email))
         {
-            throw new Exception("User already exists."); 
+            throw new ConflictException("User already exists.");
         }
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(command.Password);
@@ -41,7 +41,7 @@ public class AuthService : IAuthService
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(command.Password, user.PasswordHash))
         {
-            throw new Exception("Invalid credentials.");
+            throw new UnauthorizedException("Invalid credentials.");
         }
 
         return await GenerateTokensForUser(user);
@@ -55,14 +55,14 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.RefreshTokens.Any(t => t.Token == command.RefreshToken));
 
         if (user == null)
-            throw new Exception("Invalid token.");
+            throw new UnauthorizedException("Invalid token.");
 
         var existingToken = user.RefreshTokens.First(t => t.Token == command.RefreshToken);
 
         if (!existingToken.IsActive)
         {
             // Token Reuse Detection could happen here -> Revoke all
-            throw new Exception("Invalid token state.");
+            throw new UnauthorizedException("Invalid token state.");
         }
 
         existingToken.Revoke(); // Rotate: Invalidate old
@@ -72,18 +72,12 @@ public class AuthService : IAuthService
     
     public async Task RevokeTokenAsync(RevokeCommand command)
     {
-        var user = await _context.Users.Include(u => u.RefreshTokens)
-            .FirstOrDefaultAsync(u => u.Email == command.Email);
-            
-        if (user == null) return;
-        
-        // Revoke all for simplicity or specific logic
-        foreach (var t in user.RefreshTokens.Where(t => t.IsActive))
-        {
-            t.Revoke();
-        }
-        
-        await _context.SaveChangesAsync();
+        await RevokeTokensByEmailAsync(command.Email);
+    }
+
+    public async Task RevokeCurrentUserAsync(string email)
+    {
+        await RevokeTokensByEmailAsync(email);
     }
 
     private async Task<AuthResult> GenerateTokensForUser(User user)
@@ -99,5 +93,20 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         return new AuthResult(accessToken, refreshToken.Token);
+    }
+
+    private async Task RevokeTokensByEmailAsync(string email)
+    {
+        var user = await _context.Users.Include(u => u.RefreshTokens)
+            .FirstOrDefaultAsync(u => u.Email == email);
+
+        if (user == null) return;
+
+        foreach (var t in user.RefreshTokens.Where(t => t.IsActive))
+        {
+            t.Revoke();
+        }
+
+        await _context.SaveChangesAsync();
     }
 }
