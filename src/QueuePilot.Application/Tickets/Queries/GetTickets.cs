@@ -1,6 +1,6 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using QueuePilot.Application.Common.Interfaces;
+using QueuePilot.Application.Common.Models;
 using QueuePilot.Domain.Entities;
 using QueuePilot.Domain.Enums;
 
@@ -16,51 +16,31 @@ public record GetTicketsQuery(
 
 public record TicketDto(Guid Id, string Title, string Status, DateTime CreatedAt, string Description);
 
-public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize);
-
 public class GetTicketsQueryHandler : IRequestHandler<GetTicketsQuery, PagedResult<TicketDto>>
 {
-    private readonly IQueuePilotDbContext _context;
+    private readonly ITicketRepository _ticketRepository;
 
-    public GetTicketsQueryHandler(IQueuePilotDbContext context)
+    public GetTicketsQueryHandler(ITicketRepository ticketRepository)
     {
-        _context = context;
+        _ticketRepository = ticketRepository;
     }
 
     public async Task<PagedResult<TicketDto>> Handle(GetTicketsQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.Tickets.AsNoTracking().AsQueryable();
+        var parameters = new TicketQueryParameters(
+            request.Page,
+            request.PageSize,
+            request.Status,
+            request.SearchTerm,
+            request.FromDate,
+            request.ToDate);
 
-        if (request.Status.HasValue)
-        {
-            query = query.Where(t => t.Status == request.Status.Value);
-        }
+        var result = await _ticketRepository.GetPagedAsync(parameters, cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var term = request.SearchTerm.ToLower();
-            query = query.Where(t => t.Title.ToLower().Contains(term) || t.Description.ToLower().Contains(term));
-        }
-
-        if (request.FromDate.HasValue)
-        {
-            query = query.Where(t => t.CreatedAt >= request.FromDate.Value);
-        }
-
-        if (request.ToDate.HasValue)
-        {
-            query = query.Where(t => t.CreatedAt <= request.ToDate.Value);
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var tickets = await query
-            .OrderByDescending(t => t.CreatedAt)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+        var tickets = result.Items
             .Select(t => new TicketDto(t.Id, t.Title, t.Status.ToString(), t.CreatedAt, t.Description))
-            .ToListAsync(cancellationToken);
+            .ToList();
 
-        return new PagedResult<TicketDto>(tickets, totalCount, request.Page, request.PageSize);
+        return new PagedResult<TicketDto>(tickets, result.TotalCount, result.Page, result.PageSize);
     }
 }

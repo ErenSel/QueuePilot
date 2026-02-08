@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QueuePilot.Application.Auth.Commands;
 using QueuePilot.Application.Common.Interfaces;
@@ -36,6 +38,21 @@ public class AuthController : ControllerBase
          return Ok(result);
     }
 
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return Unauthorized();
+        }
+
+        await _authService.RevokeCurrentUserAsync(email);
+        return NoContent();
+    }
+
+    [Authorize(Policy = "AdminOnly")]
     [HttpPost("revoke")]
     public async Task<IActionResult> Revoke(RevokeCommand command)
     {

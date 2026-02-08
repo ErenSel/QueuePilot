@@ -30,6 +30,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 
+var jwtSecret = builder.Configuration["Jwt:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    throw new InvalidOperationException("Jwt:Secret is required. Set Jwt__Secret or user-secrets before starting the API.");
+}
+
 var app = builder.Build();
 
 // 3. Pipeline

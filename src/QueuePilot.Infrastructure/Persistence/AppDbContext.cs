@@ -1,10 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using QueuePilot.Application.Common.Interfaces;
 using QueuePilot.Domain.Entities;
 
 namespace QueuePilot.Infrastructure.Persistence;
 
-public class AppDbContext : DbContext, IQueuePilotDbContext
+public class AppDbContext : DbContext, QueuePilot.Application.Common.Interfaces.IUnitOfWork
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

@@ -119,7 +119,22 @@ public class EventConsumerService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing message");
-                _channel.BasicNack(ea.DeliveryTag, false, true); // Requeue
+                var retryCount = GetRetryCount(ea.BasicProperties);
+                if (retryCount >= _options.MaxRetryCount)
+                {
+                    _logger.LogWarning("Max retry attempts reached for message {MessageId}. Sending to DLQ.", ea.BasicProperties.MessageId);
+                    _channel.BasicNack(ea.DeliveryTag, false, false);
+                    return;
+                }
+
+                var retryProperties = _channel.CreateBasicProperties();
+                retryProperties.MessageId = ea.BasicProperties.MessageId;
+                retryProperties.Persistent = true;
+                retryProperties.Headers = new Dictionary<string, object>(ea.BasicProperties.Headers ?? new Dictionary<string, object>());
+                retryProperties.Headers["x-retry-count"] = retryCount + 1;
+
+                _channel.BasicPublish(_options.ExchangeName, ea.RoutingKey, retryProperties, ea.Body);
+                _channel.BasicAck(ea.DeliveryTag, false);
             }
         };
 
@@ -151,6 +166,22 @@ public class EventConsumerService : BackgroundService
         }
 
         return Task.CompletedTask;
+    }
+
+    private static int GetRetryCount(IBasicProperties properties)
+    {
+        if (properties.Headers == null || !properties.Headers.TryGetValue("x-retry-count", out var value))
+        {
+            return 0;
+        }
+
+        return value switch
+        {
+            int intValue => intValue,
+            long longValue => (int)longValue,
+            byte[] bytes when int.TryParse(Encoding.UTF8.GetString(bytes), out var parsed) => parsed,
+            _ => 0
+        };
     }
 
     public override void Dispose()

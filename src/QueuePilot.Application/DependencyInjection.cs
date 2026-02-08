@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using MediatR;
+using QueuePilot.Application.Common.Events;
 using QueuePilot.Application.Tickets.Validators;
 
 namespace QueuePilot.Application;
@@ -16,6 +17,7 @@ public static class DependencyInjection
             cfg.RegisterServicesFromAssembly(assembly);
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(Common.Behaviors.ValidationBehavior<,>));
         });
+        services.AddScoped<IDomainEventPublisher, MediatRDomainEventPublisher>();
 
         return services;
     }
