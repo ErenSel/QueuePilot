@@ -1,0 +1,3 @@
+Concurrency Exception at 8.02.2026 15:54:01
+Entity: RefreshToken, State: Modified, Key: Key: RefreshToken.Id PK
+Message: The database operation was expected to affect 1 row(s), but actually affected 0 row(s); data may have been modified or deleted since entities were loaded. See https://go.microsoft.com/fwlink/?LinkId=527962 for information on understanding and handling optimistic concurrency exceptions.
