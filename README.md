@@ -53,11 +53,16 @@ export Jwt__Secret="replace-with-strong-secret"
 export ConnectionStrings__DefaultConnection="Host=localhost;Port=5433;Database=QueuePilotDb;Username=postgres;Password=postgres"
 dotnet run --project src/QueuePilot.Api
 ```
-
 ## Tests
+
+Integration tests use Testcontainers and require Docker to be running.
+
+Ensure Docker is running before executing:
+
 ```bash
 dotnet test
 ```
+
 
 ## Troubleshooting
 - **Port already in use**: Stop the conflicting service or change the port mapping in `docker-compose.yml` (for example, map `5001:8080` for the API).
