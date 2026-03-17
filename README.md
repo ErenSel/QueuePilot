@@ -1,4 +1,4 @@
-# QueuePilot<
+# QueuePilot
 
 ## Project Purpose & Design Goals
 
